@@ -3,6 +3,7 @@ import logging
 from collections import defaultdict
 
 from .alerts import AlertService
+from .candles import aggregate_candles
 from .config import settings
 from .market import MarketStream
 from .strategy import evaluate
@@ -22,7 +23,12 @@ async def run() -> None:
     stream = MarketStream(config.provider, config.symbol)
     buffers: dict[str, list] = defaultdict(list)
     histories: dict[str, list] = defaultdict(list)
-    profile_state = ProfileState(config.profile_rows, config.profile_value_area, config.profile_hvn_count, config.profile_refresh_hours)
+    profile_state = ProfileState(
+        config.profile_rows,
+        config.profile_value_area,
+        config.profile_hvn_count,
+        config.profile_refresh_hours,
+    )
     latest_price = {"value": None}
 
     def status_text() -> str:
@@ -48,13 +54,13 @@ async def run() -> None:
         if len(args) != 2:
             raise ValueError("Usa: /define 22:00 26/10/26")
         start_ms = parse_define_datetime(args[0], args[1], config.timezone)
-        candles = await stream.hourly_history(start_ms)
+        candles = await stream.four_hour_history(start_ms)
         if not candles:
-            raise ValueError("No hay velas 1h cerradas disponibles desde esa fecha.")
+            raise ValueError("No hay velas 4h cerradas disponibles desde esa fecha.")
         profile = profile_state.replace(start_ms, candles)
-        histories["1h"] = candles[-config.profile_window :]
-        logger.info("Volume Profile definido desde %s con %s velas 1h", start_ms, len(candles))
-        return f"Volume Profile definido desde {args[0]} {args[1]} y reemplazado correctamente.\nVelas 1h cargadas: {len(candles)}\nHVN considerados: {len(profile.hvns) if profile else 0}\nSe actualizará cada {config.profile_refresh_hours}h."
+        histories["4h"] = candles[-config.profile_window :]
+        logger.info("Volume Profile definido desde %s con %s velas 4h", start_ms, len(candles))
+        return f"Volume Profile definido desde {args[0]} {args[1]} y reemplazado correctamente.\nVelas 4h cargadas: {len(candles)}\nHVN considerados: {len(profile.hvns) if profile else 0}\nSe actualizará cada {config.profile_refresh_hours}h."
 
     application = build_application(config.telegram_token, alerts, status_text, define_profile) if config.telegram_token else None
     if application:
@@ -69,34 +75,28 @@ async def run() -> None:
     try:
         async for candle in stream.candles():
             latest_price["value"] = candle.close
-            for timeframe, size in (("15m", 15), ("30m", 30), ("1h", 60)):
+            hour_completed = False
+            for timeframe, size in (("15m", 15), ("30m", 30), ("1h", 60), ("4h", 240)):
                 bucket = candle.timestamp // 60000 // size
                 key = f"{timeframe}:{bucket}"
                 current = buffers[key]
                 current.append(candle)
                 if len(current) < size:
                     continue
-                aggregate = type(candle)(
-                    timestamp=current[0].timestamp,
-                    open=current[0].open,
-                    high=max(item.high for item in current),
-                    low=min(item.low for item in current),
-                    close=current[-1].close,
-                    volume=sum(item.volume for item in current),
-                )
+                aggregate = aggregate_candles(current)
                 histories[timeframe].append(aggregate)
                 histories[timeframe] = histories[timeframe][-config.profile_window :]
                 if timeframe == "1h":
+                    hour_completed = True
+                if timeframe == "4h":
                     refreshed = profile_state.add(aggregate)
                     if refreshed:
                         logger.info("Volume Profile ampliado a la derecha: bloque de %sh", config.profile_refresh_hours)
-                    if profile_state.profile:
-                        signal = evaluate(histories["15m"], histories["1h"], profile_state.profile, config.rsi_period, config.ema_period)
-                    else:
-                        signal = None
-                    if signal:
-                        await alerts.send(signal)
                 del buffers[key]
+            if hour_completed and profile_state.profile:
+                signal = evaluate(histories["15m"], histories["1h"], profile_state.profile, config.rsi_period, config.ema_period)
+                if signal:
+                    await alerts.send(signal)
     finally:
         if application:
             await application.updater.stop()

@@ -68,4 +68,4 @@ class ProfileState:
         if self.start_ms is None:
             return "Perfil: no definido. Usa /define HH:MM DD/MM/YY"
         value = datetime.fromtimestamp(self.start_ms / 1000, timezone.utc).astimezone(ZoneInfo(timezone_name))
-        return f"Perfil desde: {value:%H:%M %d/%m/%y} ({timezone_name}) | velas 1h: {len(self.candles)} | HVN: {self.hvn_count}"
+        return f"Perfil desde: {value:%H:%M %d/%m/%y} ({timezone_name}) | velas 4h: {len(self.candles)} | HVN: {self.hvn_count}"

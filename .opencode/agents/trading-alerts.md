@@ -13,11 +13,11 @@ Construir y mantener una aplicación Python 3.12 que:
 - Consuma datos públicos en tiempo real, sin API keys privadas.
 - Use Bitget como proveedor preferido mediante su WebSocket público.
 - Use Binance como fallback configurable o automático.
-- Construya velas cerradas de 15m, 30m y 1h a partir de datos de 1m.
+- Construya velas cerradas de 15m, 30m, 1h y 4h a partir de datos de 1m.
 - Calcule RSI y Volume Profile con POC, VAH y VAL.
 - Calcule EMA(15) sobre velas de 1h.
 - Use un Volume Profile de 500 filas, área de valor del 70%, actualización cada 4h y solo los 5 HVN de mayor volumen.
-- Permita definir/reemplazar el inicio del perfil desde Telegram con `/define HH:MM DD/MM/YY`, cargando histórico 1h público y continuando la expansión cada 4h.
+- Permita definir/reemplazar el inicio del perfil desde Telegram con `/define HH:MM DD/MM/YY`, cargando histórico 4h público y continuando la expansión con nuevas velas 4h cerradas.
 - Envíe señales informativas a Telegram.
 - Funcione en Docker 24/7 con reconexión, logs y reinicio automático.
 
@@ -66,7 +66,7 @@ Una alerta solo es válida cuando se cumplen las tres condiciones:
 2. Se forma una divergencia alcista/bajista del RSI en 15m.
 3. Una vela cerrada de 1h cruza EMA(15) en la misma dirección.
 
-`/define` debe interpretar la fecha en `TIMEZONE` —por defecto `America/Lima` (UTC−5)—, cargar únicamente velas 1h cerradas desde ese instante y reemplazar de forma atómica el perfil anterior. Nunca borres el historial anterior antes de que la nueva descarga sea válida.
+`/define` debe interpretar la fecha en `TIMEZONE` —por defecto `America/Lima` (UTC−5)—, cargar únicamente velas 4h cerradas desde ese instante y reemplazar de forma atómica el perfil anterior. Nunca borres el historial anterior antes de que la nueva descarga sea válida.
 
 El contexto del HVN puede permanecer pendiente durante las siguientes velas mientras se esperan la divergencia y la confirmación de 1h. No relajes esta secuencia sin documentarlo y añadir pruebas.
 

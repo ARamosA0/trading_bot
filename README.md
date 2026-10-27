@@ -1,6 +1,6 @@
 # BTC/USDT Telegram Alerts
 
-Bot de alertas (sin trading) que consume datos públicos de Bitget y calcula RSI + Volume Profile en 15m, 30m y 1h. Si Bitget no está disponible, se puede seleccionar Binance con `MARKET_PROVIDER=binance`.
+Bot de alertas (sin trading) que consume datos públicos de Bitget, detecta divergencias RSI en 15m, confirma con EMA en 1h y calcula el Volume Profile con velas de 4h. Si Bitget no está disponible, se puede seleccionar Binance con `MARKET_PROVIDER=binance`.
 
 ## Agente de OpenCode
 
@@ -128,16 +128,16 @@ La señal requiere las tres confirmaciones siguientes:
 2. Se detecta una divergencia alcista o bajista del RSI en 15m.
 3. Una vela cerrada de 1h cruza la EMA de 15 períodos.
 
-El Volume Profile utiliza 500 filas, un área de valor del 70% y se actualiza cada 4 horas con velas 1h cerradas desde el punto inicial definido. Los HVN se calculan sobre el precio típico de cada vela 1h; no se usan datos privados del exchange.
+El Volume Profile utiliza 500 filas, un área de valor del 70% y velas 4h cerradas desde el punto inicial definido. Los HVN se calculan sobre el precio típico de cada vela 4h; el perfil se amplía al cerrar cada nueva vela 4h. No se usan datos privados del exchange.
 
-Al ejecutar `/define`, el bot descarga las velas 1h históricas desde esa fecha hasta la última vela cerrada disponible. El punto anterior se sobrescribe completamente. Después, cada nuevo bloque de 4 horas agrega las velas 1h cerradas al perfil y lo recalcula hacia la derecha. La hora se interpreta según `TIMEZONE` (por defecto `America/Lima`, UTC−5).
+Al ejecutar `/define`, el bot descarga las velas 4h históricas desde esa fecha hasta la última vela cerrada disponible. El punto anterior se sobrescribe completamente. Después, cada nueva vela 4h cerrada se agrega al perfil y este se recalcula hacia la derecha. La hora se interpreta según `TIMEZONE` (por defecto `America/Lima`, UTC−5).
 
 ## Comandos
 
 - `/start`: registra el chat y muestra ayuda.
 - `/status`: proveedor, símbolo, último precio, inicio del perfil, 5 HVN, POC, VAL y VAH.
 - `/last`: última señal calculada.
-- `/define HH:MM DD/MM/YY`: define o reemplaza el inicio del Volume Profile usando velas 1h. Ejemplo: `/define 22:00 26/10/26`.
+- `/define HH:MM DD/MM/YY`: define o reemplaza el inicio del Volume Profile usando velas 4h. Ejemplo: `/define 22:00 26/10/26`.
 
 El bot no solicita ni usa API keys de exchange y no ejecuta órdenes.
 

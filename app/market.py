@@ -8,6 +8,7 @@ import aiohttp
 from .models import Candle
 
 LOGGER = logging.getLogger(__name__)
+FOUR_HOURS_MS = 4 * 60 * 60 * 1000
 
 
 class MarketStream:
@@ -35,26 +36,26 @@ class MarketStream:
             await asyncio.sleep(delay)
             delay = min(delay * 2, 60)
 
-    async def hourly_history(self, start_ms: int) -> list[Candle]:
-        """Load closed 1h candles from start_ms through the latest closed hour."""
+    async def four_hour_history(self, start_ms: int) -> list[Candle]:
+        """Load closed 4h candles from start_ms through the latest closed candle."""
         try:
             if self.provider == "bitget":
-                return await self._bitget_hourly_history(start_ms)
-            return await self._binance_hourly_history(start_ms)
+                return await self._bitget_history(start_ms, "4H")
+            return await self._binance_history(start_ms, "4h")
         except (aiohttp.ClientError, asyncio.TimeoutError, json.JSONDecodeError, KeyError, ValueError) as exc:
             if self.provider != "bitget":
                 raise
             LOGGER.warning("No se pudo cargar histórico de Bitget: %s. Usando Binance.", exc)
             self.provider = "binance"
-            return await self._binance_hourly_history(start_ms)
+            return await self._binance_history(start_ms, "4h")
 
-    async def _bitget_hourly_history(self, start_ms: int) -> list[Candle]:
+    async def _bitget_history(self, start_ms: int, granularity: str) -> list[Candle]:
         url = "https://api.bitget.com/api/v2/spot/market/candles"
         candles: list[Candle] = []
-        cursor = start_ms
+        cursor = max(0, start_ms - FOUR_HOURS_MS)
         async with aiohttp.ClientSession() as session:
             while cursor < _now_ms():
-                params = {"symbol": self.symbol, "granularity": "1H", "startTime": str(cursor), "limit": "1000"}
+                params = {"symbol": self.symbol, "granularity": granularity, "startTime": str(cursor), "limit": "1000"}
                 async with session.get(url, params=params) as response:
                     response.raise_for_status()
                     payload = await response.json()
@@ -66,16 +67,16 @@ class MarketStream:
                 newest = max(item.timestamp for item in page)
                 if newest <= cursor:
                     break
-                cursor = newest + 3_600_000
-        return _closed(candles)
+                cursor = newest + FOUR_HOURS_MS
+        return _closed(candles, FOUR_HOURS_MS, start_ms)
 
-    async def _binance_hourly_history(self, start_ms: int) -> list[Candle]:
+    async def _binance_history(self, start_ms: int, interval: str) -> list[Candle]:
         url = "https://api.binance.com/api/v3/klines"
         candles: list[Candle] = []
-        cursor = start_ms
+        cursor = max(0, start_ms - FOUR_HOURS_MS)
         async with aiohttp.ClientSession() as session:
             while cursor < _now_ms():
-                params = {"symbol": self.symbol, "interval": "1h", "startTime": cursor, "limit": 1000}
+                params = {"symbol": self.symbol, "interval": interval, "startTime": cursor, "limit": 1000}
                 async with session.get(url, params=params) as response:
                     response.raise_for_status()
                     rows = await response.json()
@@ -86,12 +87,13 @@ class MarketStream:
                 newest = max(item.timestamp for item in page)
                 if newest <= cursor:
                     break
-                cursor = newest + 3_600_000
-        return _closed(candles)
+                cursor = newest + FOUR_HOURS_MS
+        return _closed(candles, FOUR_HOURS_MS, start_ms)
 
     async def _bitget(self) -> AsyncIterator[Candle]:
         url = "wss://ws.bitget.com/v2/ws/public"
         request = {"op": "subscribe", "args": [{"instType": "SPOT", "channel": "candle1m", "instId": self.symbol}]}
+        current: Candle | None = None
         async with aiohttp.ClientSession() as session:
             async with session.ws_connect(url, heartbeat=20) as ws:
                 await ws.send_json(request)
@@ -104,7 +106,14 @@ class MarketStream:
                             continue
                         payload = json.loads(message.data)
                         for row in payload.get("data", []):
-                            yield Candle(int(row[0]), float(row[1]), float(row[2]), float(row[3]), float(row[4]), float(row[5]))
+                            update = Candle(int(row[0]), float(row[1]), float(row[2]), float(row[3]), float(row[4]), float(row[5]))
+                            if current is None:
+                                current = update
+                            elif update.timestamp > current.timestamp:
+                                yield current
+                                current = update
+                            elif update.timestamp == current.timestamp:
+                                current = update
                     elif message.type in {aiohttp.WSMsgType.ERROR, aiohttp.WSMsgType.CLOSED}:
                         raise aiohttp.ClientError("Bitget cerró el WebSocket")
 
@@ -131,7 +140,11 @@ def _candle_from_row(row: list) -> Candle:
     return Candle(int(row[0]), float(row[1]), float(row[2]), float(row[3]), float(row[4]), float(row[5]))
 
 
-def _closed(candles: list[Candle]) -> list[Candle]:
+def _closed(candles: list[Candle], interval_ms: int, start_ms: int = 0) -> list[Candle]:
     now = _now_ms()
-    unique = {candle.timestamp: candle for candle in candles if candle.timestamp + 3_600_000 <= now}
+    unique = {
+        candle.timestamp: candle
+        for candle in candles
+        if candle.timestamp >= start_ms and candle.timestamp + interval_ms <= now
+    }
     return [unique[timestamp] for timestamp in sorted(unique)]

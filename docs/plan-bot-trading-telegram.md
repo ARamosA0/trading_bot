@@ -8,7 +8,7 @@
 El bot debe:
 
 1. Recibir datos de mercado en tiempo casi real.
-2. Construir velas de 15m, 30m y 1h.
+2. Construir velas de 15m, 30m, 1h y 4h.
 3. Calcular Volume Profile por rangos de precio y RSI por temporalidad.
 4. Generar señales explicables (no solamente `BUY`/`SELL`).
 5. Enviar alertas, gráficos/resúmenes y estado por Telegram.
@@ -27,7 +27,7 @@ El bot debe:
 ### Datos
 
 - Símbolo inicial: `BTCUSDT` en mercado spot; elegir futuros solamente si se define claramente el riesgo de apalancamiento.
-- Temporalidades: 15m, 30m y 1h.
+- Temporalidades: 15m, 30m, 1h y 4h.
 - Historial mínimo: 500–1.000 velas por temporalidad para que los indicadores tengan contexto.
 - Para un Volume Profile más fiel, consumir trades/agregados (`price`, `quantity`, `timestamp`) y asignar cada operación a un intervalo de precio. Las velas OHLCV sirven para un MVP, pero su volumen queda distribuido de forma aproximada dentro de la vela.
 
@@ -35,8 +35,8 @@ El bot debe:
 
 - **RSI:** período 14 con Wilder/RMA; detectar divergencia alcista/bajista usando pivotes de 15m y evitar señales con velas incompletas.
 - **EMA:** período 15 aplicada al cierre de 1h; la confirmación ocurre únicamente cuando la vela 1h cierra cruzando la EMA.
-- **Volume Profile:** 500 filas, área de valor del 70%, actualización/ampliación cada 4 horas y únicamente los 5 HVN con mayor volumen. Se calcula con el precio típico de velas 1h del intervalo seleccionado.
-- **Inicio configurable:** `/define HH:MM DD/MM/YY` descarga velas históricas 1h desde el punto indicado hasta la última vela cerrada. Un nuevo `/define` reemplaza el perfil anterior; después el perfil crece con cada bloque de 4h.
+- **Volume Profile:** 500 filas, área de valor del 70%, actualización/ampliación cada 4 horas y únicamente los 5 HVN con mayor volumen. Se calcula con el precio típico de velas 4h del intervalo seleccionado.
+- **Inicio configurable:** `/define HH:MM DD/MM/YY` descarga velas históricas 4h desde el punto indicado hasta la última vela cerrada. Un nuevo `/define` reemplaza el perfil anterior; después el perfil crece con cada nueva vela 4h cerrada.
 - Confirmar con la temporalidad superior: por ejemplo, una señal en 15m solo es válida si no contradice el régimen de 1h.
 
 ### Ejemplo de regla inicial (para validar, no para asumir rentabilidad)

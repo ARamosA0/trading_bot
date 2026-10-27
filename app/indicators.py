@@ -27,8 +27,13 @@ def ema(values: list[float], period: int = 15) -> list[float]:
     return result
 
 
-def volume_profile(candles: list[Candle], rows: int = 500, value_area_percent: float = 70.0, hvn_count: int = 5) -> Profile | None:
-    """Build a fixed-row profile from the selected closed 1h history."""
+def volume_profile(
+    candles: list[Candle],
+    rows: int = 100,
+    value_area_percent: float = 70.0,
+    hvn_count: int = 5,
+) -> Profile | None:
+    """Build a fixed-row profile from the selected candle history."""
     if not candles or rows < 2 or not 0 < value_area_percent <= 100:
         return None
     low = min(candle.low for candle in candles)
@@ -37,13 +42,15 @@ def volume_profile(candles: list[Candle], rows: int = 500, value_area_percent: f
         return Profile(low, low, low, (low,), 0.0)
     row_size = (high - low) / rows
     volumes = [0.0] * rows
+
     for candle in candles:
         typical = (candle.high + candle.low + candle.close) / 3
         index = min(rows - 1, max(0, int((typical - low) / row_size)))
         volumes[index] += candle.volume
 
     poc_index = max(range(rows), key=volumes.__getitem__)
-    target = sum(volumes) * value_area_percent / 100
+    total_volume = sum(volumes)
+    target = total_volume * value_area_percent / 100
     selected = {poc_index}
     while sum(volumes[index] for index in selected) < target and len(selected) < rows:
         candidates = [index for index in range(rows) if index not in selected]

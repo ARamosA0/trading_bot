@@ -9,7 +9,10 @@ def build_application(token: str, alerts: AlertService, status_text, define_prof
 
     async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if update.effective_message:
-            await update.effective_message.reply_text("Bot activo. Usa /status para ver el proveedor y /last para la última señal.")
+            await update.effective_message.reply_text(
+                "Bot activo. Usa /status para ver el proveedor y el Volume Profile 4h, "
+                "/last para la última señal y /define HH:MM DD/MM/YY para definir el perfil 4h."
+            )
 
     async def status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if update.effective_message:
