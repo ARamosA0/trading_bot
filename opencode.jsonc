@@ -1,0 +1,14 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "default_agent": "trading-alerts",
+  "instructions": [
+    "README.md",
+    "docs/*.md"
+  ],
+  "agents": {
+    "trading-alerts": {
+      "mode": "all",
+      "description": "Desarrolla y mantiene el bot de alertas de BTC/USDT en Telegram"
+    }
+  }
+}

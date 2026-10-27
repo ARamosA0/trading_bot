@@ -1,0 +1,1 @@
+"""Telegram market alerts application."""
