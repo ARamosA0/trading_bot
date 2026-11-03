@@ -6,7 +6,7 @@ from .alerts import AlertService
 from .candles import aggregate_candles
 from .config import settings
 from .market import MarketStream
-from .strategy import evaluate
+from .strategy import StrategyState
 from .telegram_bot import build_application
 from .profile import ProfileState, parse_define_datetime
 
@@ -29,6 +29,7 @@ async def run() -> None:
         config.profile_hvn_count,
         config.profile_refresh_hours,
     )
+    strategy = StrategyState(config.rsi_period, config.ema_period, config.signal_context_window)
     latest_price = {"value": None}
 
     def status_text() -> str:
@@ -58,6 +59,7 @@ async def run() -> None:
         if not candles:
             raise ValueError("No hay velas 4h cerradas disponibles desde esa fecha.")
         profile = profile_state.replace(start_ms, candles)
+        strategy.reset()
         histories["4h"] = candles[-config.profile_window :]
         logger.info("Volume Profile definido desde %s con %s velas 4h", start_ms, len(candles))
         return f"Volume Profile definido desde {args[0]} {args[1]} y reemplazado correctamente.\nVelas 4h cargadas: {len(candles)}\nHVN considerados: {len(profile.hvns) if profile else 0}\nSe actualizará cada {config.profile_refresh_hours}h."
@@ -76,6 +78,7 @@ async def run() -> None:
         async for candle in stream.candles():
             latest_price["value"] = candle.close
             hour_completed = False
+            closed_4h = None
             for timeframe, size in (("15m", 15), ("30m", 30), ("1h", 60), ("4h", 240)):
                 bucket = candle.timestamp // 60000 // size
                 key = f"{timeframe}:{bucket}"
@@ -89,14 +92,23 @@ async def run() -> None:
                 if timeframe == "1h":
                     hour_completed = True
                 if timeframe == "4h":
-                    refreshed = profile_state.add(aggregate)
-                    if refreshed:
-                        logger.info("Volume Profile ampliado a la derecha: bloque de %sh", config.profile_refresh_hours)
+                    closed_4h = aggregate
                 del buffers[key]
+            # Evaluate the just-closed 1h candle with the profile available before its close.
+            # A 4h candle closes at the same instant, so its refresh is applied afterwards
+            # to avoid using the evaluated candle's own data to define HVN levels.
+            update = None
             if hour_completed and profile_state.profile:
-                signal = evaluate(histories["15m"], histories["1h"], profile_state.profile, config.rsi_period, config.ema_period)
-                if signal:
-                    await alerts.send(signal)
+                update = strategy.update(histories["1h"], profile_state.profile)
+            if closed_4h is not None:
+                refreshed = profile_state.add(closed_4h)
+                if refreshed:
+                    logger.info("Volume Profile ampliado a la derecha: bloque de %sh", config.profile_refresh_hours)
+            if update:
+                for event in update.events:
+                    await alerts.send_event(event)
+                if update.signal:
+                    await alerts.send(update.signal)
     finally:
         if application:
             await application.updater.stop()

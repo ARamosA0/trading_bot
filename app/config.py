@@ -22,6 +22,7 @@ class Settings:
     profile_value_area: float
     profile_hvn_count: int
     profile_refresh_hours: int
+    signal_context_window: int
     ema_period: int
     profile_window: int
     cooldown_minutes: int
@@ -43,6 +44,7 @@ def settings() -> Settings:
         profile_value_area=float(os.getenv("VOLUME_PROFILE_VALUE_AREA", "70")),
         profile_hvn_count=int(os.getenv("VOLUME_PROFILE_HVN_COUNT", "5")),
         profile_refresh_hours=int(os.getenv("VOLUME_PROFILE_REFRESH_HOURS", "4")),
+        signal_context_window=int(os.getenv("SIGNAL_CONTEXT_WINDOW", "16")),
         ema_period=int(os.getenv("EMA_PERIOD", "15")),
         profile_window=int(os.getenv("VOLUME_PROFILE_WINDOW", "240")),
         cooldown_minutes=int(os.getenv("ALERT_COOLDOWN_MINUTES", "15")),

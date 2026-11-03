@@ -29,7 +29,7 @@ def ema(values: list[float], period: int = 15) -> list[float]:
 
 def volume_profile(
     candles: list[Candle],
-    rows: int = 100,
+    rows: int = 1000,
     value_area_percent: float = 70.0,
     hvn_count: int = 5,
 ) -> Profile | None:

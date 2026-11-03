@@ -60,11 +60,13 @@ Construir y mantener una aplicación Python 3.12 que:
 
 ## Estrategia vigente
 
-Una alerta solo es válida cuando se cumplen las tres condiciones:
+Una alerta final solo es válida cuando se cumplen las tres condiciones, evaluadas con velas cerradas de 1h:
 
-1. El precio toca un HVN importante y se identifica si llega desde arriba (posible soporte) o desde abajo (posible resistencia), o cruza VAL/VAH en la dirección correspondiente.
-2. Se forma una divergencia alcista/bajista del RSI en 15m.
+1. El precio toca un HVN importante y se identifica si llega desde arriba (posible soporte) o desde abajo (posible resistencia).
+2. Se forma una divergencia alcista/bajista del RSI en 1h, en la misma dirección que el toque y dentro de la ventana configurada por `SIGNAL_CONTEXT_WINDOW` (16 velas por defecto).
 3. Una vela cerrada de 1h cruza EMA(15) en la misma dirección.
+
+Además se envían avisos parciales al tocar un HVN y al confirmarse una divergencia RSI en 1h. Los avisos parciales no sustituyen la alerta final ni constituyen una señal de operación.
 
 `/define` debe interpretar la fecha en `TIMEZONE` —por defecto `America/Lima` (UTC−5)—, cargar únicamente velas 4h cerradas desde ese instante y reemplazar de forma atómica el perfil anterior. Nunca borres el historial anterior antes de que la nueva descarga sea válida.
 

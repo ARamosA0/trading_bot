@@ -1,6 +1,8 @@
 # Plan de proyecto: bot de trading de BTC/USDT para Telegram
 
 > **Estado:** propuesta inicial — octubre de 2026  
+> **Implementación actual:** solo alertas informativas; no ejecuta órdenes ni usa claves privadas.
+>
 > **Objetivo:** generar señales y, opcionalmente, ejecutar operaciones sobre BTC/USDT usando Volume Profile y RSI en 15 minutos, 30 minutos y 1 hora.
 
 ## 1. Alcance y objetivos
@@ -33,16 +35,16 @@ El bot debe:
 
 ### Indicadores
 
-- **RSI:** período 14 con Wilder/RMA; detectar divergencia alcista/bajista usando pivotes de 15m y evitar señales con velas incompletas.
+- **RSI:** período 14 con Wilder/RMA; detectar divergencia alcista/bajista usando pivotes de 1h y evitar señales con velas incompletas.
 - **EMA:** período 15 aplicada al cierre de 1h; la confirmación ocurre únicamente cuando la vela 1h cierra cruzando la EMA.
 - **Volume Profile:** 500 filas, área de valor del 70%, actualización/ampliación cada 4 horas y únicamente los 5 HVN con mayor volumen. Se calcula con el precio típico de velas 4h del intervalo seleccionado.
 - **Inicio configurable:** `/define HH:MM DD/MM/YY` descarga velas históricas 4h desde el punto indicado hasta la última vela cerrada. Un nuevo `/define` reemplaza el perfil anterior; después el perfil crece con cada nueva vela 4h cerrada.
-- Confirmar con la temporalidad superior: por ejemplo, una señal en 15m solo es válida si no contradice el régimen de 1h.
+- Temporalidad de señal: la alerta final se evalúa en 1h y usa el perfil 4h como contexto; las velas de 15m y 30m se construyen para historial, pero no generan señales en la implementación actual.
 
 ### Ejemplo de regla inicial (para validar, no para asumir rentabilidad)
 
-- Compra: el precio toca un HVN llegando desde arriba (posible soporte) o cruza VAL al alza; después aparece divergencia alcista del RSI y una vela 1h cierra por encima de EMA(15).
-- Venta: el precio toca un HVN llegando desde abajo (posible resistencia) o cruza VAH a la baja; después aparece divergencia bajista del RSI y una vela 1h cierra por debajo de EMA(15).
+- Compra: el precio toca un HVN llegando desde arriba (posible soporte) y aparece una divergencia alcista del RSI en 1h, ambas dentro de una ventana de 16 velas; después una vela 1h cierra por encima de EMA(15).
+- Venta: el precio toca un HVN llegando desde abajo (posible resistencia) y aparece una divergencia bajista del RSI en 1h, ambas dentro de una ventana de 16 velas; después una vela 1h cierra por debajo de EMA(15).
 - No operar cuando el spread, la volatilidad o la calidad de los datos excedan límites configurados.
 
 Cada señal debe incluir: precio, temporalidad, POC/VAH/VAL, RSI, razón, stop-loss, take-profit, tamaño calculado y timestamp. Las reglas exactas deben probarse con backtesting y walk-forward; no se debe optimizar solamente para que el histórico “se vea bien”.

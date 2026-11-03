@@ -1,6 +1,6 @@
 # BTC/USDT Telegram Alerts
 
-Bot de alertas (sin trading) que consume datos públicos de Bitget, detecta divergencias RSI en 15m, confirma con EMA en 1h y calcula el Volume Profile con velas de 4h. Si Bitget no está disponible, se puede seleccionar Binance con `MARKET_PROVIDER=binance`.
+Bot de alertas (sin trading) que consume datos públicos de Bitget, detecta toques de HVN y divergencias RSI en 1h, confirma con EMA en 1h y calcula el Volume Profile con velas de 4h. Si Bitget no está disponible, se puede seleccionar Binance con `MARKET_PROVIDER=binance`.
 
 ## Agente de OpenCode
 
@@ -54,12 +54,14 @@ TELEGRAM_BOT_TOKEN=123456789:ABCxxxxxxxxxxxxxxxxxxxx
 TELEGRAM_CHAT_IDS=123456789
 MARKET_PROVIDER=bitget
 SYMBOL=BTCUSDT
+TIMEZONE=America/Lima
 RSI_PERIOD=14
 EMA_PERIOD=15
 VOLUME_PROFILE_ROWS=500
 VOLUME_PROFILE_VALUE_AREA=70
 VOLUME_PROFILE_HVN_COUNT=5
 VOLUME_PROFILE_REFRESH_HOURS=4
+SIGNAL_CONTEXT_WINDOW=16
 ```
 
 Para varios chats:
@@ -122,11 +124,13 @@ El bot únicamente genera alertas informativas. No ejecuta operaciones de compra
 
 ## Estrategia de alertas
 
-La señal requiere las tres confirmaciones siguientes:
+La estrategia evalúa únicamente velas cerradas de 1h y envía tres tipos de mensaje:
 
-1. El precio toca uno de los cinco HVN con mayor volumen, identificando si llega desde arriba (posible soporte) o desde abajo (posible resistencia), o cruza VAL/VAH en la dirección correspondiente.
-2. Se detecta una divergencia alcista o bajista del RSI en 15m.
-3. Una vela cerrada de 1h cruza la EMA de 15 períodos.
+1. **Toque de HVN:** aviso cuando el precio toca uno de los cinco HVN, indicando si llega desde arriba (posible soporte) o desde abajo (posible resistencia).
+2. **Divergencia RSI:** aviso cuando se confirma una divergencia alcista o bajista del RSI en 1h.
+3. **Alerta final:** una sola señal cuando un toque de HVN y una divergencia de la misma dirección ocurren dentro de una ventana de 16 velas 1h y una vela cerrada de 1h cruza la EMA de 15 períodos en esa dirección.
+
+El toque de HVN y la divergencia son avisos informativos previos; la alerta final requiere las tres confirmaciones. La ventana de relación se configura con `SIGNAL_CONTEXT_WINDOW` (por defecto 16 velas de 1h).
 
 El Volume Profile utiliza 500 filas, un área de valor del 70% y velas 4h cerradas desde el punto inicial definido. Los HVN se calculan sobre el precio típico de cada vela 4h; el perfil se amplía al cerrar cada nueva vela 4h. No se usan datos privados del exchange.
 
@@ -136,7 +140,7 @@ Al ejecutar `/define`, el bot descarga las velas 4h históricas desde esa fecha 
 
 - `/start`: registra el chat y muestra ayuda.
 - `/status`: proveedor, símbolo, último precio, inicio del perfil, 5 HVN, POC, VAL y VAH.
-- `/last`: última señal calculada.
+- `/last`: última señal final calculada.
 - `/define HH:MM DD/MM/YY`: define o reemplaza el inicio del Volume Profile usando velas 4h. Ejemplo: `/define 22:00 26/10/26`.
 
 El bot no solicita ni usa API keys de exchange y no ejecuta órdenes.

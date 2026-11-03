@@ -32,3 +32,15 @@ class Signal:
     ema: float
     divergence: str
     context: str
+
+
+@dataclass(frozen=True)
+class MarketEvent:
+    kind: str
+    direction: str
+    timeframe: str
+    price: float
+    rsi: float | None
+    profile: Profile
+    reason: str
+    timestamp: int
